@@ -2,7 +2,7 @@
 
 module Euler.Util where
 
-import Data.List (union)
+import Data.List (group, sort, union)
 import qualified Data.Set as PQ
 import GHC.Base (build)
 import System.IO (IOMode (ReadMode), hGetContents, openFile)
@@ -86,6 +86,7 @@ powersOf :: Integer -> Integer -> Integer
 powersOf n k = if n `mod` k == 0 then 1 + powersOf (n `div` k) k else 0
 
 primeFactorization :: Integer -> [(Integer, Integer)]
+primeFactorization 0 = []
 primeFactorization 1 = []
 primeFactorization n = do
   let ps = filter (\p -> n `mod` p == 0) (takeWhile (<= isqrt n + 1) primes) -- primes dividing n
@@ -113,8 +114,19 @@ splitBy delimiterChar inputString = foldr f [""] inputString
       | otherwise = (currentChar : partialString) : handledStrings -- add the current char to the partial string
 
 -- Divisors (technically should omit sqrt(n) if n is a square..)
+-- divisors :: Integer -> [Integer]
+-- divisors n = concat [[k, n `div` k] | k <- [1 .. isqrt n], n `mod` k == 0]
 divisors :: Integer -> [Integer]
-divisors n = concat [[k, n `div` k] | k <- [1 .. isqrt n], n `mod` k == 0]
+divisors n = do
+  let pf = primeFactorization n
+  sort (divisorsFromFactorization pf)
+  where
+    divisorsFromFactorization :: [(Integer, Integer)] -> [Integer]
+    divisorsFromFactorization [] = [1]
+    divisorsFromFactorization pf =
+      let (p, k) = head pf
+          divisors' = divisorsFromFactorization (tail pf)
+       in concatMap (\r -> map (* (p ^ r)) divisors') [0 .. k]
 
 properDivisors :: Integer -> [Integer]
 properDivisors n = 1 : concat [[k, n `div` k] | k <- [2 .. isqrt n], n `mod` k == 0]
@@ -125,3 +137,31 @@ chunksOf i ls = map (take i) (build (splitter ls))
     splitter :: [e] -> ([e] -> a -> a) -> a -> a
     splitter [] _ n = n
     splitter l c n = l `c` splitter (drop i l) c n
+
+modPow :: Integer -> Integer -> Integer -> Integer
+modPow b e 1 = 0
+modPow b e m = modPow' b e m 1
+  where
+    modPow' b e 1 r = 0
+    modPow' b 0 m r = r
+    modPow' b e m r
+      | e `mod` 2 == 1 = modPow' b' e' m (r * b `mod` m)
+      | otherwise = modPow' b' e' m r
+      where
+        b' = b * b `mod` m; e' = e `div` 2
+
+choose :: Integer -> Integer -> Integer
+choose n 0 = 1
+choose 0 k = 0
+choose n k = choose (n -1) (k -1) * n `div` k
+
+extGCD :: Integer -> Integer -> (Integer, Integer, Integer)
+extGCD 0 0 = error "extGCD(0,0) is undefined"
+extGCD a 0 = (1, 0, a) -- Base case
+extGCD a b =
+  let (q, r) = a `quotRem` b -- q and r of a/b
+      (c, x, y) = extGCD b r -- Recursive call
+   in (x, c - q * x, y) -- Recursive results
+
+modInv :: Integer -> Integer -> Integer
+modInv a p = let (x, y, r) = extGCD a p in x

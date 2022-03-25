@@ -1,15 +1,13 @@
-import Data.Function (fix)
+import Control.Monad (when)
+import Data.Foldable (for_)
+import Euler.Util (primes)
 
-sideEffectFunction :: IO Int
-sideEffectFunction = do
-  print "sideEffectFunction!"
-  return 3
+ord :: Integer -> Integer -> Int
+ord a p = helper (a `mod` p)
+  where
+    helper 1 = 1
+    helper b = 1 + helper (b * a `mod` p)
 
 main :: IO ()
 main = do
-  let s = sideEffectFunction
-
-  s >>= print
-  s >>= print
-
-  print "The End!"
+  for_ (takeWhile (<= 68521) primes) (\p -> when (p /= 2 && p /= 5) $ print (p, ord 10 p))
